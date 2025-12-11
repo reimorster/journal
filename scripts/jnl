@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NOTES_DIR="${NOTES_DIR:-$HOME/notes}"
+JOURNAL_DIR="$NOTES_DIR/journal"
+
+mkdir -p "$JOURNAL_DIR"
+FILE="$JOURNAL_DIR/$(date +%F)-journal.txt"
+
+TMP=$(mktemp /tmp/journal.XXXXXX.txt)
+
+if [ $# -gt 0 ]; then
+  # Modo rápido: texto passado na linha de comando
+  echo "[$(date '+%H:%M')] $*" >> "$FILE"
+  echo "" >> "$FILE"
+else
+  # Modo editor: abre vim/nvim (EDITOR) para nota longa
+  ${EDITOR:-vim} "$TMP"
+
+  if [ -s "$TMP" ]; then
+    echo "[$(date '+%H:%M')]" >> "$FILE"
+    cat "$TMP" >> "$FILE"
+    echo "" >> "$FILE"
+  else
+    echo "⚠️ Nenhum texto digitado, nada foi salvo."
+    rm -f "$TMP"
+    exit 0
+  fi
+fi
+
+rm -f "$TMP"
+
+# Integração com Git, se NOTES_DIR for repo
+if git -C "$NOTES_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  git -C "$NOTES_DIR" add "$FILE" || true
+
+  SUMMARY=$(
+    grep -m1 -v '^[[:space:]]*$' "$FILE" \
+    | sed 's/^\[[^]]*\][[:space:]]*//' \
+    || true
+  )
+  [ -z "${SUMMARY:-}" ] && SUMMARY="journal entry"
+
+  git -C "$NOTES_DIR" commit -m "journal: $SUMMARY" >/dev/null 2>&1 || true
+fi
+
+echo "📔 Entrada registrada em $FILE"
+

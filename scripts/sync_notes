@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NOTES_DIR="${NOTES_DIR:-$HOME/notes}"
+
+if ! git -C "$NOTES_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "❌ $NOTES_DIR não é um repositório Git."
+  exit 1
+fi
+
+# Verifica se há algo modificado (working tree + staged)
+if git -C "$NOTES_DIR" diff --quiet && git -C "$NOTES_DIR" diff --cached --quiet; then
+  echo "✅ Nada para sincronizar."
+  exit 0
+fi
+
+MSG="sync $(date +%F)"
+
+git -C "$NOTES_DIR" add .
+git -C "$NOTES_DIR" commit -m "$MSG"
+
+# Só tenta dar push se houver remote configurado
+if git -C "$NOTES_DIR" remote | grep -q .; then
+  git -C "$NOTES_DIR" push
+  echo "⬆️ Notas sincronizadas com commit: $MSG (push feito)"
+else
+  echo "💾 Notas commitadas localmente com mensagem: $MSG (sem remote configurado)"
+fi
+

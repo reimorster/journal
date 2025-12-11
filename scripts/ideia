@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Diretório base das notas. Permite sobrescrever via variável de ambiente.
+NOTES_DIR="${NOTES_DIR:-$HOME/notes}"
+IDEAS_DIR="$NOTES_DIR/ideias"
+
+mkdir -p "$IDEAS_DIR"
+FILE="$IDEAS_DIR/$(date +%F)-ideias.txt"
+
+if [ $# -eq 0 ]; then
+  echo "Uso: $(basename "$0") TEXTO_DA_IDEIA..."
+  exit 1
+fi
+
+TEXT="$*"
+
+echo "- $(date +%H:%M) $TEXT" >> "$FILE"
+
+# Só faz git add/commit se for um repositório Git
+if git -C "$NOTES_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  git -C "$NOTES_DIR" add "$FILE" || true
+  git -C "$NOTES_DIR" commit -m "ideia: $TEXT" >/dev/null 2>&1 || true
+fi
+
+echo "💡 Ideia registrada em $FILE"
+
